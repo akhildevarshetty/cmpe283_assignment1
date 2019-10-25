@@ -24,3 +24,89 @@ several of them using the Restructured Text markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+===============================================================================================================================
+Steps To Use This System:
+=========================
+
+PreRequirement: Use a virtualization enabled machine with atleast 200 GB or more space.
+
+Step 1: First of all, Get VmWare Fusion setup installed.
+
+Step 2: Then install Linux Ubuntu on VMware Fusion. 
+
+Step 3: Then install GitHub in our laptop.
+
+Step 4: Then fork the Linux Repo in your GitHub Account.
+
+Step 5: Then pull the Linux Git Repo into your Ubuntu Linux.
+
+Step 6: Then run the following CL commands:
+ 	6.1 Sudo apt-get install libncurses-dev
+
+	6.2 Sudo apt-get install libssl-dev
+
+	6.3 Make menuconfig
+
+	6.4 Make
+
+	6.5 Make modules
+
+	6.6 Make modules_install
+
+	6.7 Make install
+
+	6.8 Reboot
+
+Step 7: Then Install kvm as follows:
+
+	7.1 sudo apt install cpu-checker
+
+	7.2 sudo kvm-ok
+
+	7.2 sudo apt update
+
+	7.3 sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager
+
+	7.4 sudo service libvirtd start
+
+	7.5 sudo update-rc.d libvirtd enable
+
+	7.6 service libvirtd status
+
+	7.7 sudo virt-manager
+
+Step 8: Then get inside Virt-Manager and again install Ubuntu kvm following the same steps as Step 7 and build the Kernel Code in next steps.
+
+Step 9: Then Scp the 283-1c file and makefile. 
+
+         9.1 Run the files using the commands as follows: 
+
+	 9.1.1 Make all
+
+	 9.1.2 ./insmod cmpe283.ko
+
+	 9.1.3	Dimesg
+
+Step 10: Now you will arrive at your final steps of making Hypercall to CMPE283 by following these steps: 
+  
+	10.1 CD / Goto the following path:  /lnux/arch/x86/kvm/x86.c file in the Host System
+
+	10.2 Inside the kvm_emulate_hypercall() add this code as one of the Case and recompile building the kernel:
+
+		Case 0x283:
+		ret = 0x0033383245504D43;
+
+		break;
+
+Step 11: Run the test code given in Canvas App provided in discussion thread of CMPE283 Fall 2019 Subject and follow :
+`	11.1. Copy the .tar.gz file containing the test code to the inner vm.
+	11.2. Extract the tar.gz file.
+	11.3  Implement the following command : sudo apt install gcc make.
+	11.4. CD to 283
+	11.5. The do "make" 
+	11.6. Then, Implement the command : sudo insmod cmpe283.ko
+	11.7. dmesg
+	11.8  Reboot
+
+ => This will result in answer of Hypercall as 0x0033383245504D43 in your system. You are communicating with the Hypervisor henceforth.
