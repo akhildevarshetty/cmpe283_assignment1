@@ -25,8 +25,8 @@
 #include "pmu.h"
 
 
-u32 exits,exits_per_reason[62];
-void add_exit_per_reason(u32 exit_reason);
+u32 exits, exits_per_reason[62] ;
+void add_exit_per_reason( u32 exit_reason );
 
 /*atomic_t exits;
 EXPORT_SYMBOL(exits);*/
