@@ -1069,11 +1069,21 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
-void add_exit_per_reason(u32 exit_reason){
-    if(exit_reason >= 0 && exit_reason < 62){    
+/*
+Function to get the exit reasons
+*/
+
+void add_exit_per_reason(u32 exit_reason)
+{
+
+    if(exit_reason >= 0 && exit_reason < 62)
+    {
+	    
         exits++;
         exits_per_reason[(int)exit_reason]++;
+    
     }
+	
 }
 
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
