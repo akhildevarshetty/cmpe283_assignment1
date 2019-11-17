@@ -28,8 +28,11 @@
 u32 exits, exits_per_reason[62] ;
 void add_exit_per_reason( u32 exit_reason );
 
-/*atomic_t exits;
-EXPORT_SYMBOL(exits);*/
+/*
+atomic_t exits;
+EXPORT_SYMBOL(exits);
+Tried This but its not working
+*/
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
 	int feature_bit = 0;
