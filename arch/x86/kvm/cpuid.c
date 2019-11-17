@@ -1048,6 +1048,7 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
+	
 	u32 eax, ebx, ecx, edx;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
@@ -1055,15 +1056,26 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	if(eax  ==  0x4fffffff){
+	if(eax  ==  0x4fffffff)
+	{
+		
 	    eax = exits;
+		
 	}
-	else if(eax  ==  0x4ffffffd){
-        if(ecx >= 0 && ecx < 62)	    
-            eax = exits_per_reason[(int)ecx];
+	else if(eax  ==  0x4ffffffd)
+	{
+		
+        if(ecx >= 0 && ecx < 62)
+	{
+		eax = exits_per_reason[(int)ecx];
 	}
-	else{
+            
+	}
+	else
+	{
+		
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	
 	}
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
