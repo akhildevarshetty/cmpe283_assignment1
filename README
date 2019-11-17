@@ -110,3 +110,247 @@ Step 11: Run the test code given in Canvas App provided in discussion thread of 
 	11.8  Reboot
 
  => This will result in answer of Hypercall as 0x0033383245504D43 in your system. You are communicating with the Hypervisor henceforth.
+________________________________________________________________________________________________________________________________________
+
+Assignment 2: Instrumentation Via Hypercall:
+Steps Used to Complete The Assignment:		
+Prerequirement: Use a virtualization enabled machine with at least 200 GB or more space capable of running Linux.
+     	Steps:
+	Step 1: Ensure your system is ready to the point of setup till Assignment 1.
+	Step 2: Build the new linux kernel module.
+sudo apt-get install libncurses-dev 
+sudo apt-get install libssl-dev - make menuconfig // Save the config file.
+ make && make modules && make modules_install && make install // Builds Linux Kernel 
+	Step 3: Add code to the file at arch/x86/kvm/ : 
+       -	Below is the code we modified of cpuid.c at arch/x86/kvm/cpuid.c  :	
+
+
+
+
+int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+
+
+
+
+{
+
+
+	
+
+
+	u32 eax, ebx, ecx, edx;
+
+
+
+
+
+
+
+	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
+
+
+		return 1;
+
+
+
+
+
+
+
+	eax = kvm_rax_read(vcpu);
+
+
+	ecx = kvm_rcx_read(vcpu);
+
+
+	if(eax  ==  0x4fffffff)
+
+
+	{
+
+
+		
+
+
+	    eax = exits;
+
+
+		
+
+
+	}
+
+
+	else if(eax  ==  0x4ffffffd)
+
+
+	{
+
+
+		
+
+
+       if(ecx >= 0 && ecx < 62)
+
+
+	{
+
+
+		eax = exits_per_reason[(int)ecx];
+
+
+	}
+
+
+          
+
+
+	}
+
+
+	else
+
+
+	{
+
+
+		
+
+
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+
+
+	
+
+
+	}
+
+
+	kvm_rax_write(vcpu, eax);
+
+
+	kvm_rbx_write(vcpu, ebx);
+
+
+	kvm_rcx_write(vcpu, ecx);
+
+
+	kvm_rdx_write(vcpu, edx);
+
+
+	return kvm_skip_emulated_instruction(vcpu);
+
+
+}
+
+
+
+
+
+
+
+/*
+
+
+Function to get the exit reasons
+
+
+*/
+
+
+
+
+
+
+
+void add_exit_per_reason(u32 exit_reason)
+
+
+{
+
+
+
+
+
+
+
+   if(exit_reason >= 0 && exit_reason < 62)
+
+
+   {
+
+
+	   
+
+
+       exits++;
+
+
+       exits_per_reason[(int)exit_reason]++;
+
+
+  
+
+
+   }
+
+
+	
+
+
+}
+
+
+
+
+
+Below is the code we modified of vmx.c arch/x86/kvm/vmx/vmx.c  :
+void add_exit_per_reason(u32 exit_reason);
+
+/*
+ * The guest has exited.  See if we can fix it or if we need userspace
+ * assistance.
+ */
+static int vmx_handle_exit(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 exit_reason = vmx->exit_reason;
+	u32 vectoring_info = vmx->idt_vectoring_info;
+    
+    add_exit_per_reason(exit_reason);
+
+	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
+
+	/*
+	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
+	 * updated. Another good is, in kvm_vm_ioctl_get_dirty_log, before
+	 * querying dirty_bitmap, we only need to kick all vcpus out of guest
+	 * mode as if vcpus is in root mode, the PML buffer must has been
+	 * flushed already.
+	 */
+	if (enable_pml)
+		vmx_flush_pml_buffer(vcpu);
+
+	/* If guest state is invalid, start emulating */
+	if (vmx->emulation_required)
+		return handle_invalid_guest_state(vcpu);
+
+	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason))
+		return nested_vmx_reflect_vmexit(vcpu, exit_reason);
+
+	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
+		dump_vmcs();
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		vcpu->run->fail_entry.hardware_entry_failure_reason
+			= exit_reason;
+		return 0;
+	}
+	Step 4: Build the updated code :
+	-make modules 
+-rmmod kvm 
+-rmmod kvm_intel 
+Step 5: Install virt-manager. Download Ubuntu ISO file and create test VM. 
+- sudo apt-get install qemu-kvm libvirt-bin bridge-utils virt-manager 
+- sudo apt-get install virt-manager 
+Step 6: Open Virtual-Manager and start Virtual Machine. Now try dmesg command in the host system’s terminal.
+ - dmesg 
