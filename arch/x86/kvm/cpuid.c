@@ -25,14 +25,13 @@
 #include "pmu.h"
 
 
-u32 exits, exits_per_reason[62] ;
-void add_exit_per_reason( u32 exit_reason );
+static atomic_t exits,exits_per_reason[62];
+static atomic64_t exits_time,exits_time_per_reason[62];
 
-/*
-atomic_t exits;
-EXPORT_SYMBOL(exits);
-Tried This but its not working
-*/
+void add_exit_time_per_reason(u32 exit_reason,u64 time_taken);
+
+/*atomic_t exits;
+EXPORT_SYMBOL(exits);*/
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
 	int feature_bit = 0;
@@ -1048,7 +1047,6 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
-	
 	u32 eax, ebx, ecx, edx;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
@@ -1056,26 +1054,22 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	if(eax  ==  0x4fffffff)
-	{
-		
-	    eax = exits;
-		
-	}
-	else if(eax  ==  0x4ffffffd)
-	{
-		
-        if(ecx >= 0 && ecx < 62)
-	{
-		eax = exits_per_reason[(int)ecx];
-	}
-            
-	}
-	else
-	{
-		
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
-	
+
+	if(eax  ==  0x4fffffff){
+	    eax = atomic_read(&exits);
+	}else if(eax  ==  0x4ffffffe){
+        ebx = ( (atomic64_read(&exits_time) >> 32) );
+		ecx = ( (atomic64_read(&exits_time) & 0xFFFFFFFF ));	    
+    }else if(eax  ==  0x4ffffffd){
+        if(ecx >= 0 && ecx < 62)	    
+            eax = atomic_read(&exits_per_reason[(int)ecx]);
+	}else if(eax  ==  0x4ffffffc){
+        if(ecx >= 0 && ecx < 62){        
+            ebx = ( (atomic64_read(&exits_time_per_reason[(int)ecx]) >> 32) );
+		    ecx = ( (atomic64_read(&exits_time_per_reason[(int)ecx]) & 0xFFFFFFFF ));
+        }	    
+    }else{
+	    kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	}
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
@@ -1084,22 +1078,15 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
-/*
-Function to get the exit reasons
-*/
 
-void add_exit_per_reason(u32 exit_reason)
-{
-
-    if(exit_reason >= 0 && exit_reason < 62)
-    {
-	    
-        exits++;
-        exits_per_reason[(int)exit_reason]++;
-    
+void add_exit_time_per_reason(u32 exit_reason,u64 time_taken){
+    if(exit_reason >= 0 && exit_reason < 62){    
+        atomic64_add(time_taken,&exits_time);
+        atomic64_add(time_taken,&exits_time_per_reason[(int)exit_reason]);
+        atomic_inc(&exits);
+        atomic_inc(&exits_per_reason[(int)exit_reason]);
     }
-	
 }
 
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
-EXPORT_SYMBOL_GPL(add_exit_per_reason);
+EXPORT_SYMBOL_GPL(add_exit_time_per_reason);
