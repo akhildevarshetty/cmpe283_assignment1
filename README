@@ -355,3 +355,752 @@ Step 5: Install virt-manager. Download Ubuntu ISO file and create test VM.
 - sudo apt-get install virt-manager 
 Step 6: Open Virtual-Manager and start Virtual Machine. Now try dmesg command in the host system’s terminal.
  - dmesg 
+ ____________________________________________________________________________________________________________________________________________
+ Assignment 3: Instrumentation Via Hypercall: For Instruction 2 and Instruction 4:
+ ______________________________________________________________________________________________________________________________
+ Steps Used to Complete The Assignment:		
+Prerequirement: Use a virtualization enabled machine with at least 200 GB or more space capable of running Linux.
+     	Steps:
+	Step 1: Ensure your system is ready to the point of setup till Assignment 2.
+	Step 2: Build the new linux kernel module.
+sudo apt-get install libncurses-dev 
+sudo apt-get install libssl-dev - make menuconfig // Save the config file.
+ make && make modules && make modules_install && make install // Builds Linux Kernel 
+	Step 3: Add code to the file at arch/x86/kvm/ : 
+       -	Below is the code we modified of cpuid.c at arch/x86/kvm/cpuid.c  :
+
+
+
+
+
+
+
+static atomic_t exits,exits_per_reason[62];
+
+
+
+
+
+
+
+
+static atomic64_t exits_time,exits_time_per_reason[62];
+
+
+
+
+
+
+
+void add_exit_time_per_reason(u32 exit_reason,u64 time_taken);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*atomic_t exits;
+
+
+
+
+EXPORT_SYMBOL(exits);*/
+
+if(eax  ==  0x4fffffff){
+
+
+
+
+
+
+
+
+	    eax = atomic_read(&exits);
+
+
+
+
+	}else if(eax  ==  0x4ffffffe){
+
+
+
+
+       ebx = ( (atomic64_read(&exits_time) >> 32) );
+
+
+
+
+		ecx = ( (atomic64_read(&exits_time) & 0xFFFFFFFF ));	   
+
+
+
+
+   }else if(eax  ==  0x4ffffffd){
+
+
+
+
+       if(ecx >= 0 && ecx < 62)	   
+
+
+
+
+           eax = atomic_read(&exits_per_reason[(int)ecx]);
+
+
+
+
+	}else if(eax  ==  0x4ffffffc){
+
+
+
+
+       if(ecx >= 0 && ecx < 62){       
+
+
+
+
+           ebx = ( (atomic64_read(&exits_time_per_reason[(int)ecx]) >> 32) );
+
+
+
+
+		    ecx = ( (atomic64_read(&exits_time_per_reason[(int)ecx]) & 0xFFFFFFFF ));
+
+
+
+
+       }	   
+
+
+
+
+   }else{
+
+
+
+
+	    kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+
+
+
+
+	}
+
+
+
+
+	kvm_rax_write(vcpu, eax);
+
+
+
+
+	kvm_rbx_write(vcpu, ebx);
+
+
+@@ -1084,22 +1078,15 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+
+
+
+
+	return kvm_skip_emulated_instruction(vcpu);
+
+
+
+
+}
+
+void add_exit_time_per_reason(u32 exit_reason,u64 time_taken){
+
+
+
+
+
+
+
+
+   if(exit_reason >= 0 && exit_reason < 62){   
+
+
+
+
+      atomic64_add(time_taken,&exits_time);
+
+
+
+
+       atomic64_add(time_taken,&exits_time_per_reason[(int)exit_reason]);
+
+
+
+
+       atomic_inc(&exits);
+
+
+
+
+      atomic_inc(&exits_per_reason[(int)exit_reason]);
+
+
+
+
+   }
+
+EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
+
+
+
+
+
+
+
+
+EXPORT_SYMBOL_GPL(add_exit_per_reason);
+
+
+
+
+EXPORT_SYMBOL_GPL(add_exit_time_per_reason);
+
+-   Below is the code we modified of vmx.c arch/x86/kvm/vmx/vmx.c  :
+
+
+static void vmx_exit(void)
+
+
+
+
+
+
+
+
+{
+
+
+
+
+#ifdef CONFIG_KEXEC_CORE
+
+
+
+
+	RCU_INIT_POINTER(crash_vmclear_loaded_vmcss, NULL);
+
+
+
+
+	synchronize_rcu();
+
+
+
+
+#endif
+
+
+
+
+
+
+
+
+
+
+	kvm_exit();
+
+
+
+
+
+
+
+
+
+
+#if IS_ENABLED(CONFIG_HYPERV)
+
+
+
+
+	if (static_branch_unlikely(&enable_evmcs)) {
+
+
+
+
+		int cpu;
+
+
+
+
+		struct hv_vp_assist_page *vp_ap;
+
+
+
+
+		/*
+
+
+
+
+		 * Reset everything to support using non-enlightened VMCS
+
+
+
+
+		 * access later (e.g. when we reload the module with
+
+
+
+
+		 * enlightened_vmcs=0)
+
+
+
+
+		 */
+
+
+
+
+		for_each_online_cpu(cpu) {
+
+
+
+
+			vp_ap =	hv_get_vp_assist_page(cpu);
+
+
+
+
+
+
+
+
+
+
+			if (!vp_ap)
+
+
+
+
+				continue;
+
+
+
+
+
+
+
+
+
+
+			vp_ap->nested_control.features.directhypercall = 0;
+
+
+
+
+			vp_ap->current_nested_vmcs = 0;
+
+
+
+
+			vp_ap->enlighten_vmentry = 0;
+
+
+
+
+		}
+
+
+
+
+
+
+
+
+
+
+		static_branch_disable(&enable_evmcs);
+
+
+
+
+	}
+
+
+
+
+#endif
+
+
+
+
+	vmx_cleanup_l1d_flush();
+
+
+
+
+}
+
+
+
+
+module_exit(vmx_exit);
+
+
+
+
+
+
+
+
+
+
+static int __init vmx_init(void)
+
+
+
+
+{
+
+
+
+
+	int r;
+
+
+
+
+
+
+
+
+
+
+#if IS_ENABLED(CONFIG_HYPERV)
+
+
+
+
+	/*
+
+
+
+
+	 * Enlightened VMCS usage should be recommended and the host needs
+
+
+
+
+	 * to support eVMCS v1 or above. We can also disable eVMCS support
+
+
+
+
+	 * with module parameter.
+
+
+
+
+	 */
+
+
+
+
+	if (enlightened_vmcs &&
+
+
+
+
+	    ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED &&
+
+
+
+
+	    (ms_hyperv.nested_features & HV_X64_ENLIGHTENED_VMCS_VERSION) >=
+
+
+
+
+	    KVM_EVMCS_VERSION) {
+
+
+
+
+		int cpu;
+
+
+
+
+
+
+
+
+
+
+		/* Check that we have assist pages on all online CPUs */
+
+
+
+
+		for_each_online_cpu(cpu) {
+
+
+
+
+			if (!hv_get_vp_assist_page(cpu)) {
+
+
+
+
+				enlightened_vmcs = false;
+
+
+
+
+				break;
+
+
+
+
+			}
+
+
+
+
+		}
+
+
+
+
+
+
+
+
+
+
+		if (enlightened_vmcs) {
+
+
+
+
+			pr_info("KVM: vmx: using Hyper-V Enlightened VMCS\n");
+
+
+
+
+			static_branch_enable(&enable_evmcs);
+
+
+
+
+		}
+
+
+
+
+
+
+
+
+
+
+		if (ms_hyperv.nested_features & HV_X64_NESTED_DIRECT_FLUSH)
+
+
+
+
+			vmx_x86_ops.enable_direct_tlbflush
+
+
+
+
+				= hv_enable_direct_tlbflush;
+
+
+
+
+
+
+
+
+
+
+	} else {
+
+
+
+
+		enlightened_vmcs = false;
+
+
+
+
+	}
+
+
+
+
+#endif
+
+
+
+
+
+
+
+
+
+
+	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
+
+
+
+
+		     __alignof__(struct vcpu_vmx), THIS_MODULE);
+
+
+
+
+	if (r)
+
+
+
+
+		return r;
+
+
+
+
+
+
+
+
+
+
+	/*
+
+
+
+
+	 * Must be called after kvm_init() so enable_ept is properly set
+
+
+
+
+	 * up. Hand the parameter mitigation value in which was stored in
+
+
+
+
+	 * the pre module init parser. If no parameter was given, it will
+
+
+
+
+	 * contain 'auto' which will be turned into the default 'cond'
+
+
+
+
+	 * mitigation mode.
+
+
+
+
+	 */
+
+
+
+
+	r = vmx_setup_l1d_flush(vmentry_l1d_flush_param);
+
+
+
+
+	if (r) {
+
+
+
+
+		vmx_exit();
+
+
+
+
+		return r;
+
+
+
+
+	}
+
+
+
+
+
+
+
+
+
+
+#ifdef CONFIG_KEXEC_CORE
+
+
+
+
+	rcu_assign_pointer(crash_vmclear_loaded_vmcss,
+
+
+
+
+			   crash_vmclear_local_loaded_vmcss);
+
+
+
+
+#endif
+
+
+
+
+	vmx_check_vmcs12_offsets();
+
+
+
+
+
+
+
+
+
+
+	return 0;
+
+
+
+
+}
+
+
+
+
+module_init(vmx_init);
+
+	Step 4: Build the updated code :
+	-make modules 
+-rmmod kvm 
+-rmmod kvm_intel 
+Step 5: Install virt-manager. Download Ubuntu ISO file and create test VM. 
+- sudo apt-get install qemu-kvm libvirt-bin bridge-utils virt-manager 
+- sudo apt-get install virt-manager 
+Step 6: Open Virtual-Manager and start Virtual Machine. Now try dmesg command in the host system’s terminal.
+ - dmesg 
+
