@@ -1103,4 +1103,20 @@ Step 5: Install virt-manager. Download Ubuntu ISO file and create test VM.
 - sudo apt-get install virt-manager 
 Step 6: Open Virtual-Manager and start Virtual Machine. Now try dmesg command in the host system’s terminal.
  - dmesg 
+ _____________________________________________________________________________________________________________________________
+ Assignment 4: Instrumenting KVM : Difference in Performance Using Nested Paging Vs. Shadow Paging
+ _____________________________________________________________________________________________________________________________
+Steps To Complete This Assignment: 
+Step 1: Run Assignment 3 Code.
+Step 2: After VM Boot, Dmesg the host machine and record total count for each exit type.
+Step 3: Remove KVM-Intel; rmmod kvm-intel now
+Step 4: Reload the kvm-intel module with parameter ept=0 disabling nested paging and enabling shadow paging:
+        insmod  /lib/modules/XXX/kernel/arch/x86/kvm/kvm-intel.ko ept=0
+Step 5: Boot the same test VM again, and capture the same output from your ‘dmesg’ output.
 
+Note: Write Debug Statements At Every Point of the file CPUID.C To Capture Logs to Differentiate Between Exit Counts Of Nested Paging Vs. Shadow Paging.
+      printk("sd> Exit_Reason : ALL , Cpu_Cycles_Count : %u\n",eax);
+      printk("sd> Exit_Reason : ALL , Time_Taken : %lld\n",temp);
+      printk("sd> Exit_Reason : %d , Cpu_Cycles_Count : %u\n",(int)ecx,eax);
+      printk("sd> Exit_Reason : %d , Time_Taken : %lld\n",(int)ecx,temp);
+ Step 6: Take Sample logs and Put it in Submission Doc.
