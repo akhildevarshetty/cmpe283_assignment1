@@ -31,6 +31,7 @@ static atomic64_t exits_time,exits_time_per_reason[62];
 void add_exit_time_per_reason(u32 exit_reason,u64 time_taken);
 
 /*atomic_t exits;
+
 EXPORT_SYMBOL(exits);*/
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
