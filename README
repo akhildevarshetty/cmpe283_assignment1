@@ -1115,8 +1115,8 @@ Step 4: Reload the kvm-intel module with parameter ept=0 disabling nested paging
 Step 5: Boot the same test VM again, and capture the same output from your ‘dmesg’ output.
 
 Note: Write Debug Statements At Every Point of the file CPUID.C To Capture Logs to Differentiate Between Exit Counts Of Nested Paging Vs. Shadow Paging.
-      printk("sd> Exit_Reason : ALL , Exit_Count : %u\n",eax);
+      printk("sd> Exit_Reason : ALL , ExitCount : %u\n",eax);
       printk("sd> Exit_Reason : ALL , Time_Taken : %lld\n",temp);
-      printk("sd> Exit_Reason : %d , Exit_Count : %u\n",(int)ecx,eax);
+      printk("sd> Exit_Reason : %d , ExitCount : %u\n",(int)ecx,eax);
       printk("sd> Exit_Reason : %d , Time_Taken : %lld\n",(int)ecx,temp);
  Step 6: Take Sample logs and Put it in Submission Doc.
